@@ -207,14 +207,23 @@
       <h1>Timeline Planner</h1>
       <p>
         Demo autonome du composant "ressources x timeline" en JavaScript natif + jQuery.
-        Les selecteurs de vue (Glissante / Globale / Custom) et de granularite (Jour / Semaine / Mois)
-        sont integres dans le footer du composant. Le panneau ci-dessous expose uniquement des options
-        techniques de demo.
+        Les selecteurs de vue (Glissante / Globale / Personnalisee) et de granularite (Jour / Semaine / Mois)
+        sont integres dans le footer du composant. Le panneau ci-dessous permet de tester la langue
+        integree du composant ainsi que des options techniques de demo.
       </p>
     </div>
 
     <section class="demo-panel demo-tech-panel">
       <div class="demo-tech-grid">
+        <div class="demo-field">
+          <label for="config-language">Langue du composant</label>
+          <select id="config-language">
+            <option value="FR" selected>FR</option>
+            <option value="EN">EN</option>
+            <option value="ES">ES</option>
+          </select>
+        </div>
+
         <div class="demo-field">
           <label for="config-column-size">Taille de colonne (technique)</label>
           <select id="config-column-size">
@@ -236,8 +245,8 @@
       </div>
 
       <p class="demo-tech-note">
-        Le footer du composant pilote la granularite et le mode de vue. Ce panneau superieur ne pilote
-        que des options techniques de demonstration.
+        Le footer du composant pilote la granularite et le mode de vue. Ce panneau superieur permet
+        de tester la langue integree du composant et quelques options techniques de demonstration.
       </p>
 
       <div class="demo-tech-actions">
@@ -268,8 +277,9 @@
           <ul class="demo-list">
             <li>Utilise le footer du tableau pour changer Jour / Semaine / Mois.</li>
             <li>Passe en vue globale pour voir le "fit to content" sans scroll horizontal.</li>
-            <li>Passe en vue custom pour faire apparaitre les dates debut / fin dans le footer.</li>
+            <li>Passe en vue personnalisee pour faire apparaitre les dates debut / fin dans le footer.</li>
             <li>En vue glissante, scrolle horizontalement jusqu'au bord pour etendre la plage.</li>
+            <li>Change la langue dans le panneau superieur pour verifier les textes integres du composant.</li>
             <li>Decoche les options techniques pour desactiver reorder ou move inter-ressources.</li>
             <li>Ajoute des marqueurs pour verifier leur rendu visible dans la fenetre courante.</li>
           </ul>
@@ -286,6 +296,7 @@
       var $planner = $("#planner-demo");
       var $debug = $("#debug-output");
       var $state = $("#planner-state");
+      var $configLanguage = $("#config-language");
       var $configColumnSize = $("#config-column-size");
       var $configAllowReorder = $("#config-allow-reorder");
       var $configAllowCrossResource = $("#config-allow-cross-resource");
@@ -294,6 +305,7 @@
       var newResourceCounter = 20;
       var newMarkerCounter = 20;
       var demoDefaults = {
+        language: "FR",
         columnSizePreset: "medium",
         allowResourceReorder: true,
         allowCrossResourceEventMove: true
@@ -406,6 +418,7 @@
 
       function readTechConfig() {
         return {
+          language: $configLanguage.val(),
           columnSizePreset: $configColumnSize.val(),
           allowResourceReorder: $configAllowReorder.prop("checked"),
           allowCrossResourceEventMove: $configAllowCrossResource.prop("checked")
@@ -413,6 +426,7 @@
       }
 
       function syncTechControls(config) {
+        $configLanguage.val(config.language);
         $configColumnSize.val(config.columnSizePreset);
         $configAllowReorder.prop("checked", config.allowResourceReorder);
         $configAllowCrossResource.prop("checked", config.allowCrossResourceEventMove);
@@ -421,7 +435,7 @@
       function createPlanner(extraOptions) {
         var techConfig = readTechConfig();
         var plannerOptions = $.extend(true, {
-          toolbarTitle: "Planning demonstration",
+          language: techConfig.language,
           viewMode: "sliding",
           columnSizePreset: techConfig.columnSizePreset,
           allowResourceReorder: techConfig.allowResourceReorder,

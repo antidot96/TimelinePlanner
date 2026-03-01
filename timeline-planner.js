@@ -238,6 +238,153 @@
     return "month";
   }
 
+  var BUILT_IN_LOCALES = {
+    EN: {
+      labels: {
+        defaultToolbarTitle: "Timeline Planner",
+        resources: "Resources",
+        display: "Display",
+        view: "View",
+        start: "Start",
+        end: "End",
+        addResource: "Add Resource",
+        addEventAria: "Add Event",
+        reorderResourceAria: "Reorder Resource"
+      },
+      timeScaleOptions: {
+        day: "Day",
+        week: "Week",
+        month: "Month"
+      },
+      viewModeOptions: {
+        sliding: "Sliding",
+        global: "Global",
+        custom: "Custom"
+      },
+      calendar: {
+        monthsShort: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        daysShort: ["S", "M", "T", "W", "T", "F", "S"],
+        weekPrefix: "W"
+      },
+      menu: {
+        resourceEdit: "Edit Resource",
+        resourceDelete: "Delete Resource",
+        resourceAction1: "Resource Action 1",
+        resourceAction2: "Resource Action 2",
+        eventEdit: "Edit Event",
+        eventDelete: "Delete Event",
+        eventAction1: "Event Action 1",
+        eventAction2: "Event Action 2",
+        eventCreate: "Create Event"
+      },
+      messages: {
+        validationError: "Validation error.",
+        actionNotAllowed: "Action not allowed.",
+        invalidDates: "Dates are invalid.",
+        targetResourceMissing: "The target resource could not be found.",
+        editingForbidden: "Editing is not allowed.",
+        overlapForbidden: "Overlap is not allowed on the same resource.",
+        beforeEventChangeRejected: "The change was rejected by beforeEventChange."
+      }
+    },
+    FR: {
+      labels: {
+        defaultToolbarTitle: "Planning",
+        resources: "Ressources",
+        display: "Affichage",
+        view: "Vue",
+        start: "Debut",
+        end: "Fin",
+        addResource: "Ajouter une ressource",
+        addEventAria: "Ajouter un evenement",
+        reorderResourceAria: "Reordonner la ressource"
+      },
+      timeScaleOptions: {
+        day: "Jour",
+        week: "Semaine",
+        month: "Mois"
+      },
+      viewModeOptions: {
+        sliding: "Glissante",
+        global: "Globale",
+        custom: "Personnalisee"
+      },
+      calendar: {
+        monthsShort: ["Jan", "Fev", "Mar", "Avr", "Mai", "Juin", "Juil", "Aou", "Sep", "Oct", "Nov", "Dec"],
+        daysShort: ["D", "L", "M", "M", "J", "V", "S"],
+        weekPrefix: "S"
+      },
+      menu: {
+        resourceEdit: "Modifier la ressource",
+        resourceDelete: "Supprimer la ressource",
+        resourceAction1: "Action ressource 1",
+        resourceAction2: "Action ressource 2",
+        eventEdit: "Modifier l'evenement",
+        eventDelete: "Supprimer l'evenement",
+        eventAction1: "Action evenement 1",
+        eventAction2: "Action evenement 2",
+        eventCreate: "Creer un evenement"
+      },
+      messages: {
+        validationError: "Erreur de validation.",
+        actionNotAllowed: "Action non autorisee.",
+        invalidDates: "Les dates sont invalides.",
+        targetResourceMissing: "La ressource cible est introuvable.",
+        editingForbidden: "Edition interdite.",
+        overlapForbidden: "Le chevauchement est interdit sur une meme ressource.",
+        beforeEventChangeRejected: "Le changement a ete refuse par beforeEventChange."
+      }
+    },
+    ES: {
+      labels: {
+        defaultToolbarTitle: "Planificador",
+        resources: "Recursos",
+        display: "Visualizacion",
+        view: "Vista",
+        start: "Inicio",
+        end: "Fin",
+        addResource: "Agregar un recurso",
+        addEventAria: "Agregar un evento",
+        reorderResourceAria: "Reordenar recurso"
+      },
+      timeScaleOptions: {
+        day: "Dia",
+        week: "Semana",
+        month: "Mes"
+      },
+      viewModeOptions: {
+        sliding: "Deslizante",
+        global: "Global",
+        custom: "Personalizada"
+      },
+      calendar: {
+        monthsShort: ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"],
+        daysShort: ["D", "L", "M", "X", "J", "V", "S"],
+        weekPrefix: "S"
+      },
+      menu: {
+        resourceEdit: "Editar recurso",
+        resourceDelete: "Eliminar recurso",
+        resourceAction1: "Accion recurso 1",
+        resourceAction2: "Accion recurso 2",
+        eventEdit: "Editar evento",
+        eventDelete: "Eliminar evento",
+        eventAction1: "Accion evento 1",
+        eventAction2: "Accion evento 2",
+        eventCreate: "Crear evento"
+      },
+      messages: {
+        validationError: "Error de validacion.",
+        actionNotAllowed: "Accion no autorizada.",
+        invalidDates: "Las fechas no son validas.",
+        targetResourceMissing: "No se encontro el recurso destino.",
+        editingForbidden: "Edicion no permitida.",
+        overlapForbidden: "No se permite solapamiento en el mismo recurso.",
+        beforeEventChangeRejected: "El cambio fue rechazado por beforeEventChange."
+      }
+    }
+  };
+
   function TimelinePlanner(container, options) {
     var incomingOptions = options || {};
 
@@ -302,10 +449,12 @@
     this.$footer = null;
     this.$toastLayer = null;
     this.$contextMenu = null;
+    this.locale = null;
 
     this.initialResources = this.options.resources || [];
     this.initialEvents = this.options.events || [];
     this.initialMarkers = this.options.markers || [];
+    this._refreshLocale();
 
     this._buildShell();
     this._setResourcesInternal(this.initialResources);
@@ -328,6 +477,8 @@
       builtInContextMenu: false,
       multiSelectResources: false,
       showTodayLine: true,
+      language: "EN",
+      translations: {},
       timeScale: "day",
       viewMode: "sliding",
       columnSizePreset: "medium",
@@ -363,7 +514,7 @@
       },
       headerHeight: 58,
       footerHeight: 64,
-      toolbarTitle: "Timeline Planner",
+      toolbarTitle: null,
       resourceRowActionsPosition: "inlineLabel",
       newEventDurationDays: 3,
       customView: {
@@ -388,6 +539,7 @@
   TimelinePlanner.prototype._sanitizeOptions = function (options) {
     var sanitized = $.extend(true, {}, options);
     var defaultOptions = this._createDefaultOptions();
+    var normalizedLanguage;
     var validTimeScales = {
       day: true,
       week: true,
@@ -419,6 +571,18 @@
       sanitized.resourceRowActionsPosition = defaultOptions.resourceRowActionsPosition;
     }
 
+    normalizedLanguage = String(sanitized.language || defaultOptions.language).toUpperCase();
+
+    if (!BUILT_IN_LOCALES[normalizedLanguage]) {
+      normalizedLanguage = defaultOptions.language;
+    }
+
+    sanitized.language = normalizedLanguage;
+
+    if (!$.isPlainObject(sanitized.translations)) {
+      sanitized.translations = {};
+    }
+
     sanitized.contentMarginDays = Math.max(0, parseInt(sanitized.contentMarginDays, 10) || defaultOptions.contentMarginDays);
     sanitized.fitMinDays = Math.max(1, parseInt(sanitized.fitMinDays, 10) || defaultOptions.fitMinDays);
     sanitized.slidingEdgeThresholdDays = Math.max(1, parseInt(sanitized.slidingEdgeThresholdDays, 10) || defaultOptions.slidingEdgeThresholdDays);
@@ -429,6 +593,13 @@
     sanitized.slidingExtendBy = $.extend({}, defaultOptions.slidingExtendBy, sanitized.slidingExtendBy || {});
 
     return sanitized;
+  };
+
+  TimelinePlanner.prototype._refreshLocale = function () {
+    this.locale = mergeOptions(
+      BUILT_IN_LOCALES[this.options.language] || BUILT_IN_LOCALES.EN,
+      this.options.translations || {}
+    );
   };
 
   TimelinePlanner.prototype._buildShell = function () {
@@ -986,6 +1157,7 @@
 
   TimelinePlanner.prototype._renderToolbar = function () {
     var canCreate = this._isActionAllowed("resource.create", { targetType: "resource" });
+    var toolbarTitle = this.options.toolbarTitle;
     var $wrap = $(
       '<div class="tp-toolbar-main">' +
         '<div class="tp-toolbar-title-group">' +
@@ -995,12 +1167,17 @@
       "</div>"
     );
 
-    $wrap.find(".tp-toolbar-title").text(this.options.toolbarTitle);
+    if (toolbarTitle === null || toolbarTitle === undefined) {
+      toolbarTitle = this.locale.labels.defaultToolbarTitle;
+    }
+
+    $wrap.find(".tp-toolbar-title").text(toolbarTitle);
 
     if (canCreate) {
       $wrap.find(".tp-toolbar-actions").append(
-        '<button type="button" class="tp-add-resource-btn">Ajouter une ressource</button>'
+        '<button type="button" class="tp-add-resource-btn"></button>'
       );
+      $wrap.find(".tp-add-resource-btn").text(this.locale.labels.addResource);
     }
 
     this.$toolbar.empty().append($wrap);
@@ -1024,7 +1201,7 @@
     var bottomSegments = this._buildHeaderSegments("bottom");
     var index;
 
-    $left.text("Ressources");
+    $left.text(this.locale.labels.resources);
 
     for (index = 0; index < topSegments.length; index += 1) {
       $top.append(this._buildHeaderSegment(topSegments[index]));
@@ -1059,39 +1236,49 @@
 
     $controls.append(
       '<label class="tp-footer-field">' +
-        '<span>Affichage</span>' +
+        '<span></span>' +
         '<select class="tp-time-scale-select">' +
-          '<option value="day">Jour</option>' +
-          '<option value="week">Semaine</option>' +
-          '<option value="month">Mois</option>' +
+          '<option value="day"></option>' +
+          '<option value="week"></option>' +
+          '<option value="month"></option>' +
         "</select>" +
       "</label>"
     );
+    $controls.find(".tp-time-scale-select").prev("span").text(this.locale.labels.display);
+    $controls.find('.tp-time-scale-select option[value="day"]').text(this.locale.timeScaleOptions.day);
+    $controls.find('.tp-time-scale-select option[value="week"]').text(this.locale.timeScaleOptions.week);
+    $controls.find('.tp-time-scale-select option[value="month"]').text(this.locale.timeScaleOptions.month);
 
     $controls.append(
       '<label class="tp-footer-field">' +
-        '<span>Vue</span>' +
+        '<span></span>' +
         '<select class="tp-view-mode-select">' +
-          '<option value="sliding">Glissante</option>' +
-          '<option value="global">Globale</option>' +
-          '<option value="custom">Custom</option>' +
+          '<option value="sliding"></option>' +
+          '<option value="global"></option>' +
+          '<option value="custom"></option>' +
         "</select>" +
       "</label>"
     );
+    $controls.find(".tp-view-mode-select").prev("span").text(this.locale.labels.view);
+    $controls.find('.tp-view-mode-select option[value="sliding"]').text(this.locale.viewModeOptions.sliding);
+    $controls.find('.tp-view-mode-select option[value="global"]').text(this.locale.viewModeOptions.global);
+    $controls.find('.tp-view-mode-select option[value="custom"]').text(this.locale.viewModeOptions.custom);
 
     if (this.currentViewMode === "custom") {
       $controls.append(
         '<label class="tp-footer-field tp-footer-field-date">' +
-          '<span>Debut</span>' +
+          '<span></span>' +
           '<input type="date" class="tp-custom-start-input">' +
         "</label>"
       );
       $controls.append(
         '<label class="tp-footer-field tp-footer-field-date">' +
-          '<span>Fin</span>' +
+          '<span></span>' +
           '<input type="date" class="tp-custom-end-input">' +
         "</label>"
       );
+      $controls.find(".tp-custom-start-input").prev("span").text(this.locale.labels.start);
+      $controls.find(".tp-custom-end-input").prev("span").text(this.locale.labels.end);
     }
 
     this.$footer.empty().append($footer);
@@ -1152,8 +1339,9 @@
   };
 
   TimelinePlanner.prototype._getHeaderLabel = function (date, band) {
-    var shortDays = ["D", "L", "M", "M", "J", "V", "S"];
-    var shortMonths = ["Jan", "Fev", "Mar", "Avr", "Mai", "Juin", "Juil", "Aou", "Sep", "Oct", "Nov", "Dec"];
+    var shortDays = this.locale.calendar.daysShort;
+    var shortMonths = this.locale.calendar.monthsShort;
+    var weekPrefix = this.locale.calendar.weekPrefix || "W";
 
     if (this.currentTimeScale === "month") {
       return band === "top" ? String(date.getUTCFullYear()) : shortMonths[date.getUTCMonth()];
@@ -1164,7 +1352,7 @@
         return shortMonths[date.getUTCMonth()] + " " + date.getUTCFullYear();
       }
 
-      return "S" + String(getIsoWeekNumber(date, this.options.weekStartsOn)).padStart(2, "0");
+      return weekPrefix + String(getIsoWeekNumber(date, this.options.weekStartsOn)).padStart(2, "0");
     }
 
     if (band === "top") {
@@ -1344,13 +1532,13 @@
     });
     var $inner = $('<div class="tp-resource-cell-inner"></div>').addClass("tp-actions-" + actionPosition);
     var $handle = $(
-      '<button type="button" class="tp-resource-handle" aria-label="Reordonner">' +
+      '<button type="button" class="tp-resource-handle">' +
         '<span class="tp-resource-handle-icon" aria-hidden="true"></span>' +
       "</button>"
     );
     var $labelSlot = $('<div class="tp-resource-label-slot"></div>');
     var $label = $('<div class="tp-resource-label"></div>');
-    var $action = $('<button type="button" class="tp-add-event-btn" aria-label="Ajouter un evenement">+</button>');
+    var $action = $('<button type="button" class="tp-add-event-btn">+</button>');
     var canCreate = this._isActionAllowed("event.create", { targetType: "resource", resource: resource });
     var canReorder = this._isActionAllowed("resource.reorder", { targetType: "resource", resource: resource });
     var content = this.options.renderResourceLabel
@@ -1359,6 +1547,8 @@
 
     appendContent($label, content, !!this.options.renderResourceLabel);
     $labelSlot.append($label);
+    $handle.attr("aria-label", this.locale.labels.reorderResourceAria);
+    $action.attr("aria-label", this.locale.labels.addEventAria);
 
     if (!canCreate) {
       $action.addClass("is-disabled").prop("disabled", true);
@@ -1701,15 +1891,15 @@
 
   TimelinePlanner.prototype._getActionLabel = function (actionId) {
     var map = {
-      "resource.edit": "Modifier la ressource",
-      "resource.delete": "Supprimer la ressource",
-      "resource.action1": "Action ressource 1",
-      "resource.action2": "Action ressource 2",
-      "event.edit": "Modifier l'evenement",
-      "event.delete": "Supprimer l'evenement",
-      "event.action1": "Action evenement 1",
-      "event.action2": "Action evenement 2",
-      "event.create": "Creer un evenement"
+      "resource.edit": this.locale.menu.resourceEdit,
+      "resource.delete": this.locale.menu.resourceDelete,
+      "resource.action1": this.locale.menu.resourceAction1,
+      "resource.action2": this.locale.menu.resourceAction2,
+      "event.edit": this.locale.menu.eventEdit,
+      "event.delete": this.locale.menu.eventDelete,
+      "event.action1": this.locale.menu.eventAction1,
+      "event.action2": this.locale.menu.eventAction2,
+      "event.create": this.locale.menu.eventCreate
     };
 
     return map[actionId] || actionId;
@@ -2052,7 +2242,7 @@
       return {
         ok: false,
         code: "READ_ONLY",
-        message: "Le changement a ete refuse par beforeEventChange.",
+        message: this.locale.messages.beforeEventChangeRejected,
         changeType: changeType
       };
     }
@@ -2264,7 +2454,7 @@
       {
         ok: false,
         code: "READ_ONLY",
-        message: "Action non autorisee."
+        message: this.locale.messages.actionNotAllowed
       },
       $.extend({}, ctx || {}, { action: actionId })
     );
@@ -2313,7 +2503,7 @@
       return {
         ok: false,
         code: "INVALID_DATE",
-        message: "Les dates sont invalides."
+        message: this.locale.messages.invalidDates
       };
     }
 
@@ -2321,7 +2511,7 @@
       return {
         ok: false,
         code: "INVALID_DATE",
-        message: "La ressource cible est introuvable."
+        message: this.locale.messages.targetResourceMissing
       };
     }
 
@@ -2333,7 +2523,7 @@
       return {
         ok: false,
         code: "READ_ONLY",
-        message: "Edition interdite."
+        message: this.locale.messages.editingForbidden
       };
     }
 
@@ -2355,7 +2545,7 @@
         return {
           ok: false,
           code: "OVERLAP",
-          message: "Le chevauchement est interdit sur une meme ressource."
+          message: this.locale.messages.overlapForbidden
         };
       }
     }
@@ -2369,7 +2559,7 @@
     var shouldShowToast = !(context && context.silent === true);
     var payload = {
       code: validation.code || "UNKNOWN",
-      message: validation.message || "Erreur de validation.",
+      message: validation.message || this.locale.messages.validationError,
       context: cloneData(context || {}),
       resource: context && context.resource ? cloneData(context.resource) : null,
       event: context && context.event ? cloneData(context.event) : null,
@@ -2845,6 +3035,7 @@
     }
 
     this.options = this._sanitizeOptions(merged);
+    this._refreshLocale();
 
     if (Object.prototype.hasOwnProperty.call(patch, "resources")) {
       this._setResourcesInternal(patch.resources || []);
@@ -3223,6 +3414,7 @@
     return {
       selectedResourceIds: this.selectedResourceIds.slice(),
       selectedResourceId: this.selectedResourceIds.length ? this.selectedResourceIds[0] : null,
+      language: this.options.language,
       visibleStart: formatIsoDate(visible.start),
       visibleEnd: formatIsoDate(visible.end),
       displayStart: formatIsoDate(this.displayRange.start),

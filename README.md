@@ -42,9 +42,9 @@ Le move / resize des evenements, les vues et la selection de plage sont geres en
 - Dates au format `YYYY-MM-DD` uniquement
 - Pas de support datetime dans cette version
 - `end` est traite comme `inclusive`
-- Le snap d'edition reste a `1 jour`
-- Il n'y a plus de `range` fourni : la plage visible est calculee depuis les `events` et `markers`
-- La regle native `OUT_OF_RANGE` n'existe plus
+- Le snap d'edition est de `1 jour`
+- La plage visible est calculee depuis les `events` et `markers`
+- La langue integree se pilote avec `language` (`EN` par defaut) et peut etre ajustee finement avec `translations`
 
 ## Modele fonctionnel
 
@@ -100,7 +100,7 @@ Interpretation :
 <script src="./timeline-planner.js"></script>
 <script>
   var planner = new TimelinePlanner("#planner", {
-    toolbarTitle: "Planning",
+    language: "FR",
     viewMode: "sliding",
     customView: { start: "2026-02-10", end: "2026-03-20" },
     resources: [
@@ -188,6 +188,9 @@ Les `markers` sont non interactifs et sont pris en compte dans les calculs de `s
 
   showTodayLine: true,
 
+  language: "EN",      // EN | FR | ES
+  translations: {},
+
   timeScale: "day",        // day | week | month
   viewMode: "sliding",     // sliding | global | custom
   columnSizePreset: "medium", // small | medium | large
@@ -213,7 +216,7 @@ Les `markers` sont non interactifs et sont pris en compte dans les calculs de `s
   resourceColumnWidth: 280,
   headerHeight: 58,
   footerHeight: 64,
-  toolbarTitle: "Timeline Planner",
+  toolbarTitle: null,
   resourceRowActionsPosition: "inlineLabel",
   newEventDurationDays: 3,
 
@@ -245,10 +248,50 @@ Notes utiles :
 - `allowResourceReorder` desactive proprement le handle et `sortable`
 - `allowCrossResourceEventMove: false` laisse le drag temporel actif, mais empeche de changer de ressource
 - `columnSizePreset` n'agit que sur `sliding`
+- `language` selectionne le pack integre (`EN`, `FR`, `ES`)
+- `translations` fusionne partiellement vos libelles metier sur le pack choisi
+- `toolbarTitle: null` utilise le titre integre de la langue courante
 - en `global` et `custom`, la largeur des colonnes est calculee automatiquement pour tout faire tenir
 - en `sliding`, l'extension automatique des colonnes est temporisee (`slidingExtendDelayMs`) pour eviter un emballement
 - en `sliding`, approcher le pointeur du bord gauche/droit de la timeline peut aussi declencher l'extension, utile quand il n'y a pas encore de scrollbar horizontale
 - `beforeEventChange(nextEvent, context)` est appele avant le commit d'un drag / resize et avant `updateEvent()`
+
+## Langue et textes
+
+Packs integres disponibles :
+
+- `EN` (par defaut)
+- `FR`
+- `ES`
+
+Le dictionnaire actif couvre notamment :
+
+- le titre integre du toolbar
+- le libelle de la colonne ressources
+- le bouton d'ajout de ressource
+- les labels du footer
+- les valeurs visibles des selecteurs du footer
+- les abrevations de mois
+- les initiales de jours et le prefixe des semaines
+- les libelles du menu contextuel integre
+- les messages de validation et de toast
+- les labels ARIA du handle de reorder et du bouton d'ajout d'evenement
+
+Les surcharges metier se font via `translations` :
+
+```js
+var planner = new TimelinePlanner("#planner", {
+  language: "FR",
+  translations: {
+    labels: {
+      resources: "Lots",
+      addResource: "Ajouter un lot"
+    }
+  }
+});
+```
+
+`translations` est fusionne en profondeur avec le pack choisi. Vous pouvez donc ne fournir qu'une partie des cles.
 
 ## Footer integre
 
@@ -256,9 +299,9 @@ Le composant affiche un footer fixe en bas du planner.
 
 Il contient :
 
-- le selecteur de granularite (`Jour | Semaine | Mois`)
-- le selecteur de vue (`Glissante | Globale | Custom`)
-- en mode `custom`, les champs `debut` / `fin`
+- le selecteur de granularite (libelles selon la langue courante)
+- le selecteur de vue (libelles selon la langue courante)
+- en mode `custom`, les champs `debut` / `fin` (libelles selon la langue courante)
 
 Comportement :
 
@@ -273,8 +316,6 @@ Validation integree :
 - `READ_ONLY` : action interdite par `editable`, `resource.editable`, `event.editable` ou `can`
 - `INVALID_DATE` : date invalide, ordre incoherent ou ressource cible absente
 
-Il n'y a plus de validation native `OUT_OF_RANGE`.
-
 En cas d'echec :
 
 - revert visuel de l'interaction
@@ -284,7 +325,7 @@ En cas d'echec :
 Chargement des donnees :
 
 - au chargement initial ou via `setEvents()`, un evenement invalide est ignore
-- `validationError` reste emis pour diagnostic
+- `validationError` est emis pour diagnostic
 - aucun toast visuel n'est affiche pour ces erreurs de chargement
 
 ## Controle des droits
@@ -376,11 +417,11 @@ Payloads typiques :
 planner.updateOptions(partialOptions);
 
 planner.setTimeScale("day");      // day | week | month
-planner.setScaleMode("day");      // alias legacy de setTimeScale
+planner.setScaleMode("day");      // alias de setTimeScale
 planner.setViewMode("sliding");   // sliding | global | custom
 planner.setCustomView({ start, end });
 planner.setView({ start, end });  // alias de setCustomView
-planner.setRange({ start, end }); // alias legacy de setCustomView
+planner.setRange({ start, end }); // alias de setCustomView
 planner.setColumnSizePreset("medium"); // small | medium | large
 
 planner.setResources(resources);
@@ -416,6 +457,7 @@ Contrat de retour :
 
 `planner.getState()` renvoie notamment :
 
+- `language`
 - `timeScale`
 - `viewMode`
 - `columnSizePreset`
