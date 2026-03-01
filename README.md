@@ -1,0 +1,453 @@
+# Timeline Planner
+
+Composant de planning "ressources x timeline" en JavaScript natif + jQuery.
+
+Le composant fournit :
+
+- une colonne sticky de ressources
+- une grille temporelle scrollable ou "fit to content" selon le mode de vue
+- des evenements de duree (barres)
+- des markers ponctuels (lignes verticales non interactives)
+- la selection de ressource
+- le reorder vertical des ressources
+- la creation d'evenements par bouton ou selection de plage
+- le move / resize d'evenements
+- un footer integre avec selecteurs de vue
+- un bus d'evenements jQuery
+
+Fichiers livres :
+
+- `timeline-planner.js`
+- `timeline-planner.css`
+- `demo.html`
+
+## Dependances
+
+Requis :
+
+- jQuery 3.x
+
+Utilise dans cette implementation :
+
+- jQuery UI 1.13.3
+
+Feature jQuery UI utilisee :
+
+- `sortable` uniquement, pour le reorder vertical des ressources
+
+Le move / resize des evenements, les vues et la selection de plage sont geres en natif (DOM + souris).
+
+## Conventions
+
+- Dates au format `YYYY-MM-DD` uniquement
+- Pas de support datetime dans cette version
+- `end` est traite comme `inclusive`
+- Le snap d'edition reste a `1 jour`
+- Il n'y a plus de `range` fourni : la plage visible est calculee depuis les `events` et `markers`
+- La regle native `OUT_OF_RANGE` n'existe plus
+
+## Modele fonctionnel
+
+Le composant se pilote avec 2 notions distinctes :
+
+- `timeScale` : `day | week | month`
+- `viewMode` : `sliding | global | custom`
+
+Interpretation :
+
+- `timeScale` definit la granularite visuelle de la grille
+- `viewMode` definit comment la plage visible est calculee
+
+### View modes
+
+`sliding`
+
+- scroll horizontal autorise
+- colonnes a largeur fixe
+- la plage initiale est calculee depuis le min / max des `events` et `markers`, avec une marge de 7 jours avant et apres
+- si on approche d'un bord au scroll horizontal, la plage est etendue dynamiquement :
+  - `day` -> +30 jours
+  - `week` -> +4 semaines
+  - `month` -> +1 mois
+
+`global`
+
+- pas de scroll horizontal
+- fit to content
+- la plage visible englobe tous les `events` et `markers`
+- marge de 7 jours avant / apres
+- si la duree obtenue est inferieure a 30 jours, la fin est etendue a droite jusqu'a 30 jours
+- s'il n'y a aucun `event` ni `marker`, le composant retombe automatiquement en `sliding`
+
+`custom`
+
+- pas de scroll horizontal
+- l'utilisateur fournit `customView.start` et `customView.end`
+- la plage est fit dans la largeur visible
+- si la duree est inferieure a 30 jours, la date de fin reelle est etendue a droite et le champ de fin est mis a jour
+- en affichage `day`, le header adapte automatiquement ses libelles si les colonnes deviennent trop etroites (numero seul, puis masquage complet)
+
+## Integration rapide
+
+```html
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.3/themes/base/jquery-ui.css">
+<link rel="stylesheet" href="./timeline-planner.css">
+
+<div id="planner"></div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.3/jquery-ui.min.js"></script>
+<script src="./timeline-planner.js"></script>
+<script>
+  var planner = new TimelinePlanner("#planner", {
+    toolbarTitle: "Planning",
+    viewMode: "sliding",
+    customView: { start: "2026-02-10", end: "2026-03-20" },
+    resources: [
+      { id: "R1", label: "Equipe A", order: 1, meta: { manager: "Lena" } }
+    ],
+    events: [
+      { id: "E1", resourceId: "R1", start: "2026-02-01", end: "2026-02-05", meta: { label: "Lot A" } }
+    ],
+    markers: [
+      { id: "M1", date: "2026-02-15", label: "Jalon", color: "#cb4d42", lineStyle: "dashed", lineWidth: 2 }
+    ]
+  });
+</script>
+```
+
+## Constructeur
+
+```js
+var planner = new TimelinePlanner(containerSelectorOrElement, options);
+```
+
+Expose aussi :
+
+```js
+planner.destroy();
+```
+
+## Structure des donnees
+
+### Ressource
+
+```js
+{
+  id: "R1",
+  label: "Nom ressource",
+  order: 1,
+  editable: true,
+  typeId: "T1",
+  meta: { anyCustomData: true }
+}
+```
+
+### Evenement (barre)
+
+```js
+{
+  id: "E1",
+  resourceId: "R1",
+  start: "2026-02-01",
+  end: "2026-02-10",
+  editable: true,
+  meta: { anyCustomData: true }
+}
+```
+
+### Marker (repere ponctuel)
+
+```js
+{
+  id: "M1",
+  date: "2026-02-15",
+  label: "Debut travaux",
+  color: "#cb4d42",
+  lineStyle: "solid", // solid | dashed | dotted
+  lineWidth: 2,
+  meta: { anyCustomData: true }
+}
+```
+
+Les `markers` sont non interactifs et sont pris en compte dans les calculs de `sliding` et `global`.
+
+## Options principales
+
+```js
+{
+  editable: true,
+  controlledResources: false,
+  controlledEvents: false,
+
+  allowResourceReorder: true,
+  allowCrossResourceEventMove: true,
+
+  builtInContextMenu: false,
+  multiSelectResources: false,
+
+  showTodayLine: true,
+
+  timeScale: "day",        // day | week | month
+  viewMode: "sliding",     // sliding | global | custom
+  columnSizePreset: "medium", // small | medium | large
+
+  contentMarginDays: 7,
+  fitMinDays: 30,
+  slidingEdgeThresholdDays: 5,
+  slidingExtendDelayMs: 1000,
+  slidingPointerEdgeZonePx: 48,
+  slidingExtendBy: {
+    day: 30,
+    week: 28,
+    month: 30
+  },
+
+  customView: {
+    start: "2026-02-10",
+    end: "2026-03-20"
+  },
+
+  weekStartsOn: 1,
+  rowHeight: 58,
+  resourceColumnWidth: 280,
+  headerHeight: 58,
+  footerHeight: 64,
+  toolbarTitle: "Timeline Planner",
+  resourceRowActionsPosition: "inlineLabel",
+  newEventDurationDays: 3,
+
+  columnWidths: {
+    day: { small: 24, medium: 34, large: 44 },
+    week: { small: 14, medium: 18, large: 24 },
+    month: { small: 8, medium: 11, large: 14 }
+  },
+
+  resources: [],
+  events: [],
+  markers: [],
+
+  renderResourceLabel: function (resource) {},
+  renderEventContent: function (event) {},
+  resourceClassNames: function (resource) {},
+  eventClassNames: function (event) {},
+  slotClassNames: function (dateIso, timeScale) {},
+
+  customValidateEvent: function (nextEvent, context) {},
+  customValidateMode: "compose", // compose | replace
+  can: function (action, ctx) {},
+  beforeEventChange: function (nextEvent, context) {}
+}
+```
+
+Notes utiles :
+
+- `allowResourceReorder` desactive proprement le handle et `sortable`
+- `allowCrossResourceEventMove: false` laisse le drag temporel actif, mais empeche de changer de ressource
+- `columnSizePreset` n'agit que sur `sliding`
+- en `global` et `custom`, la largeur des colonnes est calculee automatiquement pour tout faire tenir
+- en `sliding`, l'extension automatique des colonnes est temporisee (`slidingExtendDelayMs`) pour eviter un emballement
+- en `sliding`, approcher le pointeur du bord gauche/droit de la timeline peut aussi declencher l'extension, utile quand il n'y a pas encore de scrollbar horizontale
+- `beforeEventChange(nextEvent, context)` est appele avant le commit d'un drag / resize et avant `updateEvent()`
+
+## Footer integre
+
+Le composant affiche un footer fixe en bas du planner.
+
+Il contient :
+
+- le selecteur de granularite (`Jour | Semaine | Mois`)
+- le selecteur de vue (`Glissante | Globale | Custom`)
+- en mode `custom`, les champs `debut` / `fin`
+
+Comportement :
+
+- changer de vue ou de granularite dans le footer met a jour le composant immediatement
+- si la date de fin custom est trop courte, elle est automatiquement etendue puis reaffichee dans le footer
+
+## Validation native
+
+Validation integree :
+
+- `OVERLAP` : chevauchement interdit sur une meme ressource
+- `READ_ONLY` : action interdite par `editable`, `resource.editable`, `event.editable` ou `can`
+- `INVALID_DATE` : date invalide, ordre incoherent ou ressource cible absente
+
+Il n'y a plus de validation native `OUT_OF_RANGE`.
+
+En cas d'echec :
+
+- revert visuel de l'interaction
+- toast interne discret
+- emission de `validationError`
+
+Chargement des donnees :
+
+- au chargement initial ou via `setEvents()`, un evenement invalide est ignore
+- `validationError` reste emis pour diagnostic
+- aucun toast visuel n'est affiche pour ces erreurs de chargement
+
+## Controle des droits
+
+Le composant verifie :
+
+- `options.editable`
+- `resource.editable`
+- `event.editable`
+- `options.can(action, ctx)`
+
+Actions utilisees par le composant :
+
+- `resource.create`
+- `resource.edit`
+- `resource.delete`
+- `resource.reorder`
+- `resource.action1`
+- `resource.action2`
+- `event.create`
+- `event.edit`
+- `event.delete`
+- `event.move`
+- `event.resize`
+- `event.action1`
+- `event.action2`
+
+## Rendu personnalisable
+
+Callbacks de rendu :
+
+- `renderResourceLabel(resource) => string | HTMLElement | jQuery`
+- `renderEventContent(event) => string | HTMLElement | jQuery`
+- `resourceClassNames(resource) => string | string[]`
+- `eventClassNames(event) => string | string[]`
+- `slotClassNames(dateIso, timeScale) => string | string[]`
+
+Comportement de securite :
+
+- hors callbacks, les labels par defaut sont rendus comme texte et non comme HTML
+- si un callback retourne une `string`, elle est injectee comme HTML : n'utiliser que du contenu de confiance
+- pour eviter toute ambiguite, preferer retourner un `HTMLElement` ou un objet jQuery
+
+## Evenements jQuery
+
+Tous les evenements sont emis sur le container :
+
+```js
+$(container).on("resourceSelect", function (e, payload) {
+  console.log(payload);
+});
+```
+
+Evenements minimum emis :
+
+- `resourceSelect`
+- `contextMenuRequested`
+- `resourceCreateRequested`
+- `eventCreateRequested`
+- `eventEditRequested`
+- `eventChangeRequested`
+- `resourceOrderChangeRequested`
+- `validationError`
+- `viewChanged`
+
+Evenements additionnels / conditionnels :
+
+- `contextActionSelected` (menu integre)
+- `resourceEditRequested` (double-clic sur ressource ou action de menu)
+- `resourceDeleteRequested` (action de menu)
+- `eventDeleteRequested` (action de menu)
+
+Payloads typiques :
+
+- `resourceSelect` : `resource`, `resourceId`, `meta`, `selectedResourceIds`, `clientX`, `clientY`
+- `contextMenuRequested` : `targetType`, `resource`, `event`, `resourceId`, `eventId`, `date`, `clientX`, `clientY`, `actions`
+- `eventCreateRequested` :
+  - via bouton : `resource`, `resourceId`, `suggestedStart`, `suggestedEnd`, `inputMethod: "button"`
+  - via drag vide : `resource`, `resourceId`, `start`, `end`, `inputMethod: "range"`
+  - via menu vide : `resource`, `resourceId`, `start`, `end`, `inputMethod: "contextMenu"`
+- `eventChangeRequested` : `eventId`, `resourceId`, `oldEvent`, `nextEvent`, `changeType`, `resource`
+- `resourceOrderChangeRequested` : `orderedResourceIds`, `oldOrder`, `newOrder`
+- `validationError` : `code`, `message`, `context`, `resource`, `event`, `nextEvent`
+- `viewChanged` : `timeScale`, `viewMode`, `visibleStart`, `visibleEnd`, `displayStart`, `displayEnd`, `scrollLeft`, `scrollTop`
+
+## API publique
+
+```js
+planner.updateOptions(partialOptions);
+
+planner.setTimeScale("day");      // day | week | month
+planner.setScaleMode("day");      // alias legacy de setTimeScale
+planner.setViewMode("sliding");   // sliding | global | custom
+planner.setCustomView({ start, end });
+planner.setView({ start, end });  // alias de setCustomView
+planner.setRange({ start, end }); // alias legacy de setCustomView
+planner.setColumnSizePreset("medium"); // small | medium | large
+
+planner.setResources(resources);
+planner.setEvents(events);
+planner.setMarkers(markers);
+
+planner.addResource(resource);
+planner.updateResource(resource);
+planner.removeResource(resourceId);
+
+planner.addEvent(eventObject);
+planner.updateEvent(eventObject);
+planner.removeEvent(eventId);
+
+planner.addMarker(marker);
+planner.updateMarker(marker);
+planner.removeMarker(markerId);
+
+planner.scrollToDate("2026-02-15", "center"); // actif en sliding
+planner.scrollToResource("R5");
+
+planner.getState();
+planner.destroy();
+```
+
+Contrat de retour :
+
+- `updateOptions()`, `set*()`, `scrollTo*()` retournent l'instance
+- `add*()`, `update*()` et `remove*()` sur les ressources / evenements / markers retournent un booleen
+- `updateResource()`, `updateEvent()` et `updateMarker()` se comportent comme des upserts si l'ID n'existe pas encore
+
+## getState()
+
+`planner.getState()` renvoie notamment :
+
+- `timeScale`
+- `viewMode`
+- `columnSizePreset`
+- `visibleStart`
+- `visibleEnd`
+- `displayStart`
+- `displayEnd`
+- `allowResourceReorder`
+- `allowCrossResourceEventMove`
+- `customView`
+- les tableaux `resources`, `events`, `markers`
+
+## Demo
+
+Ouvrir `demo.html`.
+
+La demo montre :
+
+- 10 ressources avec `order` et `meta`
+- plusieurs evenements non continus
+- des `markers` verticaux, dont 2 le meme jour pour montrer le decalage
+- le footer integre du composant pour `day / week / month` et `sliding / global / custom`
+- un panneau de configuration technique pour `columnSizePreset` et les flags de drag / reorder
+- la creation par selection de plage
+- le move / resize
+- le reorder
+- les payloads d'evenements dans un panneau de debug
+- un cas `OVERLAP` volontaire
+
+## Notes techniques
+
+- Les dates sont manipulees en UTC a minuit pour eviter les decalages lies au fuseau / DST
+- `sliding` etend la plage visible dynamiquement au scroll horizontal
+- `global` et `custom` calculent la largeur des colonnes pour supprimer le scroll horizontal
+- `destroy()` nettoie le DOM, les handlers namespaces et l'instance stockee via jQuery
