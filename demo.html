@@ -243,6 +243,9 @@
   </style>
 </head>
 <body>
+
+<h1>TOTO</h1>
+
   <div class="demo-shell">
     <div class="demo-header">
       <h1>Timeline Planner</h1>
@@ -562,7 +565,7 @@
             end: "2026-03-20"
           },
           builtInContextMenu: true,
-          contextMenu: getDemoContextMenu(techConfig.language),
+          // contextMenu: getDemoContextMenu(techConfig.language),
           resources: deepClone(baseResources),
           events: deepClone(baseEvents),
           markers: deepClone(baseMarkers),
@@ -744,7 +747,37 @@
       });
 
       syncTechControls(demoDefaults);
-      createPlanner();
+      createPlanner(
+              {
+                contextMenu: {
+                    actions: {
+                        "resource.edit": {
+                            labelKey: "menu.resourceEdit",
+                            permission: "resource.edit",
+                            builtIn: true,
+                            mutable: true
+                        },
+                        "lot.openSheet": {
+                            label: "Ouvrir la fiche lot",
+                            iconClass: "icon-sheet",
+                            classNames: "is-accent",
+                            permission: "lot.openSheet",
+                            when: function (ctx) {
+                                return ctx.resource && ctx.resource.typeId === "LOT";
+                            }
+                        }
+                    },
+                    targets: {
+                        resource: ["resource.edit", "lot.openSheet", "resource.delete"],
+                        event: ["event.edit", "event.delete"],
+                        empty: ["event.create"]
+                    },
+                    resolveActions: function (targetType, ctx, actionIds) {
+                        return actionIds;
+                    }
+                }
+              }
+      );
     })();
   </script>
 </body>
