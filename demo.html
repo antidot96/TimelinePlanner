@@ -176,6 +176,47 @@
       background: linear-gradient(135deg, #6c8aa8 0%, #425b73 100%);
     }
 
+    .tp-menu-item.demo-menu-accent {
+      color: #0f6178;
+    }
+
+    .tp-menu-item.demo-menu-accent:hover {
+      background: #e7f6f8;
+    }
+
+    .tp-menu-item.demo-menu-success {
+      color: #1f6c4d;
+    }
+
+    .tp-menu-item.demo-menu-success:hover {
+      background: #e8f7ef;
+    }
+
+    .tp-menu-item.demo-menu-muted {
+      color: #4e6575;
+    }
+
+    .tp-menu-item.demo-menu-muted:hover {
+      background: #eef4f7;
+    }
+
+    .tp-menu-item-icon.demo-menu-icon-sheet::before {
+      content: "[]";
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+
+    .tp-menu-item-icon.demo-menu-icon-inspect::before {
+      content: "i";
+      font-weight: 800;
+      font-style: italic;
+    }
+
+    .tp-menu-item-icon.demo-menu-icon-marker::before {
+      content: "+";
+      font-weight: 800;
+    }
+
     .demo-list {
       margin: 10px 0 0;
       padding-left: 18px;
@@ -208,7 +249,7 @@
       <p>
         Demo autonome du composant "ressources x timeline" en JavaScript natif + jQuery.
         Les selecteurs de vue (Glissante / Globale / Personnalisee) et de granularite (Jour / Semaine / Mois)
-        sont integres dans le footer du composant. Le panneau ci-dessous permet de tester la langue
+        sont integres dans la barre haute du composant. Le panneau ci-dessous permet de tester la langue
         integree du composant ainsi que des options techniques de demo.
       </p>
     </div>
@@ -245,7 +286,7 @@
       </div>
 
       <p class="demo-tech-note">
-        Le footer du composant pilote la granularite et le mode de vue. Ce panneau superieur permet
+        La barre haute du composant pilote la granularite et le mode de vue. Ce panneau superieur permet
         de tester la langue integree du composant et quelques options techniques de demonstration.
       </p>
 
@@ -275,11 +316,12 @@
         <div class="block">
           <h2>Ce qu'il faut tester</h2>
           <ul class="demo-list">
-            <li>Utilise le footer du tableau pour changer Jour / Semaine / Mois.</li>
+            <li>Utilise la barre haute du tableau pour changer Jour / Semaine / Mois.</li>
             <li>Passe en vue globale pour voir le "fit to content" sans scroll horizontal.</li>
-            <li>Passe en vue personnalisee pour faire apparaitre les dates debut / fin dans le footer.</li>
+            <li>Passe en vue personnalisee pour faire apparaitre les dates debut / fin dans la barre haute.</li>
             <li>En vue glissante, scrolle horizontalement jusqu'au bord pour etendre la plage.</li>
             <li>Change la langue dans le panneau superieur pour verifier les textes integres du composant.</li>
+            <li>Teste le clic droit pour voir les actions configurees par cible, avec icones et styles.</li>
             <li>Decoche les options techniques pour desactiver reorder ou move inter-ressources.</li>
             <li>Ajoute des marqueurs pour verifier leur rendu visible dans la fenetre courante.</li>
           </ul>
@@ -416,6 +458,74 @@
         return "M" + newMarkerCounter;
       }
 
+      function getDemoTexts(language) {
+        var normalized = String(language || "EN").toUpperCase();
+        var map = {
+          FR: {
+            resourceOpenSheet: "Ouvrir la fiche",
+            eventInspect: "Inspecter l'evenement",
+            emptyAddMarker: "Poser un marqueur ici",
+            menuMarkerLabel: "Repere menu"
+          },
+          EN: {
+            resourceOpenSheet: "Open sheet",
+            eventInspect: "Inspect event",
+            emptyAddMarker: "Add marker here",
+            menuMarkerLabel: "Menu marker"
+          },
+          ES: {
+            resourceOpenSheet: "Abrir ficha",
+            eventInspect: "Inspeccionar evento",
+            emptyAddMarker: "Agregar marcador aqui",
+            menuMarkerLabel: "Marcador menu"
+          }
+        };
+
+        return map[normalized] || map.EN;
+      }
+
+      function getDemoContextMenu(language) {
+        var texts = getDemoTexts(language);
+
+        return {
+          actions: {
+            "resource.openSheet": {
+              label: texts.resourceOpenSheet,
+              iconClass: "demo-menu-icon-sheet",
+              classNames: "demo-menu-accent",
+              permission: "resource.openSheet",
+              when: function (ctx) {
+                return !!(ctx.resource && ctx.resource.meta && ctx.resource.meta.manager);
+              }
+            },
+            "event.inspect": {
+              label: texts.eventInspect,
+              iconClass: "demo-menu-icon-inspect",
+              classNames: "demo-menu-muted",
+              permission: "event.inspect",
+              when: function (ctx) {
+                return !!(ctx.event && ctx.event.meta && ctx.event.meta.status === "firm");
+              }
+            },
+            "empty.addMarker": {
+              label: texts.emptyAddMarker,
+              iconClass: "demo-menu-icon-marker",
+              classNames: "demo-menu-success",
+              permission: "marker.create",
+              mutable: true,
+              when: function (ctx) {
+                return !!(ctx.resource && ctx.date);
+              }
+            }
+          },
+          targets: {
+            resource: ["resource.edit", "resource.openSheet", "resource.delete"],
+            event: ["event.edit", "event.inspect", "event.delete"],
+            empty: ["event.create", "empty.addMarker"]
+          }
+        };
+      }
+
       function readTechConfig() {
         return {
           language: $configLanguage.val(),
@@ -435,7 +545,13 @@
       function createPlanner(extraOptions) {
         var techConfig = readTechConfig();
         var plannerOptions = $.extend(true, {
+          toolbarTitle: "Planning de coactivité",
           language: techConfig.language,
+          translations: {
+            labels: {
+              resources: "Lots"
+            }
+          },
           viewMode: "sliding",
           columnSizePreset: techConfig.columnSizePreset,
           allowResourceReorder: techConfig.allowResourceReorder,
@@ -446,6 +562,7 @@
             end: "2026-03-20"
           },
           builtInContextMenu: true,
+          contextMenu: getDemoContextMenu(techConfig.language),
           resources: deepClone(baseResources),
           events: deepClone(baseEvents),
           markers: deepClone(baseMarkers),
@@ -548,11 +665,16 @@
       });
 
       $("#btn-apply-tech").on("click", function () {
+        var techConfig;
+
         if (!planner) {
           return;
         }
 
-        planner.updateOptions(readTechConfig());
+        techConfig = readTechConfig();
+        planner.updateOptions($.extend({}, techConfig, {
+          contextMenu: getDemoContextMenu(techConfig.language)
+        }));
         refreshState();
       });
 
@@ -598,6 +720,27 @@
           lineWidth: 1 + Math.floor(Math.random() * 3)
         });
         refreshState();
+      });
+
+      $planner.on("contextActionSelected", function (event, payload) {
+        var texts;
+
+        if (!planner || !payload) {
+          return;
+        }
+
+        if (payload.actionId === "empty.addMarker" && payload.date) {
+          texts = getDemoTexts(planner.getState().language);
+          planner.addMarker({
+            id: nextMarkerId(),
+            date: payload.date,
+            label: texts.menuMarkerLabel + " " + newMarkerCounter,
+            color: "#1f8a70",
+            lineStyle: "dashed",
+            lineWidth: 2
+          });
+          refreshState();
+        }
       });
 
       syncTechControls(demoDefaults);

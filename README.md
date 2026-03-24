@@ -12,7 +12,7 @@ Le composant fournit :
 - le reorder vertical des ressources
 - la creation d'evenements par bouton ou selection de plage
 - le move / resize d'evenements
-- un footer integre avec selecteurs de vue
+- une barre haute avec selecteurs de vue
 - un bus d'evenements jQuery
 
 Fichiers livres :
@@ -184,6 +184,11 @@ Les `markers` sont non interactifs et sont pris en compte dans les calculs de `s
   allowCrossResourceEventMove: true,
 
   builtInContextMenu: false,
+  contextMenu: {
+    actions: {},
+    targets: {},
+    resolveActions: null
+  },
   multiSelectResources: false,
 
   showTodayLine: true,
@@ -215,7 +220,6 @@ Les `markers` sont non interactifs et sont pris en compte dans les calculs de `s
   rowHeight: 58,
   resourceColumnWidth: 280,
   headerHeight: 58,
-  footerHeight: 64,
   toolbarTitle: null,
   resourceRowActionsPosition: "inlineLabel",
   newEventDurationDays: 3,
@@ -251,6 +255,7 @@ Notes utiles :
 - `language` selectionne le pack integre (`EN`, `FR`, `ES`)
 - `translations` fusionne partiellement vos libelles metier sur le pack choisi
 - `toolbarTitle: null` utilise le titre integre de la langue courante
+- `contextMenu` permet de configurer les actions visibles pour `resource`, `event` et `empty`
 - en `global` et `custom`, la largeur des colonnes est calculee automatiquement pour tout faire tenir
 - en `sliding`, l'extension automatique des colonnes est temporisee (`slidingExtendDelayMs`) pour eviter un emballement
 - en `sliding`, approcher le pointeur du bord gauche/droit de la timeline peut aussi declencher l'extension, utile quand il n'y a pas encore de scrollbar horizontale
@@ -269,8 +274,8 @@ Le dictionnaire actif couvre notamment :
 - le titre integre du toolbar
 - le libelle de la colonne ressources
 - le bouton d'ajout de ressource
-- les labels du footer
-- les valeurs visibles des selecteurs du footer
+- les labels des controles de la barre haute
+- les valeurs visibles des selecteurs de la barre haute
 - les abrevations de mois
 - les initiales de jours et le prefixe des semaines
 - les libelles du menu contextuel integre
@@ -293,20 +298,93 @@ var planner = new TimelinePlanner("#planner", {
 
 `translations` est fusionne en profondeur avec le pack choisi. Vous pouvez donc ne fournir qu'une partie des cles.
 
-## Footer integre
+## Context menu configurable
 
-Le composant affiche un footer fixe en bas du planner.
+Le composant fournit un registre d'actions de context menu configurable sans casser les actions integrees par defaut.
+
+Structure :
+
+```js
+contextMenu: {
+  actions: {
+    "resource.edit": {
+      labelKey: "menu.resourceEdit",
+      permission: "resource.edit",
+      builtIn: true,
+      mutable: true
+    },
+    "lot.openSheet": {
+      label: "Ouvrir la fiche lot",
+      iconClass: "icon-sheet",
+      classNames: "is-accent",
+      permission: "lot.openSheet",
+      when: function (ctx) {
+        return ctx.resource && ctx.resource.typeId === "LOT";
+      }
+    }
+  },
+  targets: {
+    resource: ["resource.edit", "lot.openSheet", "resource.delete"],
+    event: ["event.edit", "event.delete"],
+    empty: ["event.create"]
+  },
+  resolveActions: function (targetType, ctx, actionIds) {
+    return actionIds;
+  }
+}
+```
+
+Champs utiles d'une action :
+
+- `label` : texte fixe
+- `labelKey` : cle de traduction resolue depuis le dictionnaire actif
+- `iconClass` : classe CSS ajoutee a l'icone de l'item
+- `classNames` : classes CSS ajoutees a l'item de menu
+- `permission` : nom technique passe a `can(action, ctx)` ; peut aussi etre une fonction supplementaire de filtrage
+- `when(ctx)` : filtre contextuel local a l'action
+- `mutable: true` : applique les gardes d'edition (`editable`, `resource.editable`, `event.editable`)
+- `builtIn: true` : conserve le dispatch standard des actions integrees (`resourceEditRequested`, `eventDeleteRequested`, etc.)
+
+Comportement :
+
+- si aucune configuration n'est fournie, le menu utilise les actions integrees actuelles
+- les actions non autorisees sont masquees
+- `can(action, ctx)` continue de fonctionner ; `ctx.requestedAction` contient l'ID d'action de menu original
+- `targets` determine quelles actions sont candidates par cible
+- `resolveActions()` permet de reordonner ou remplacer dynamiquement la liste finale par cible
+
+Actions integrees par defaut :
+
+- `resource.edit`
+- `resource.delete`
+- `resource.action1`
+- `resource.action2`
+- `event.edit`
+- `event.delete`
+- `event.action1`
+- `event.action2`
+- `event.create`
+
+## Barre haute
+
+Le composant affiche une barre haute fixe au-dessus de la grille.
 
 Il contient :
 
 - le selecteur de granularite (libelles selon la langue courante)
 - le selecteur de vue (libelles selon la langue courante)
 - en mode `custom`, les champs `debut` / `fin` (libelles selon la langue courante)
+- le titre du planner a gauche
+
+L'en-tete sticky de la colonne ressources contient :
+
+- le libelle de la colonne ressources
+- le bouton principal d'ajout de ressource, affiche comme un bouton compact avec l'icone `+`
 
 Comportement :
 
-- changer de vue ou de granularite dans le footer met a jour le composant immediatement
-- si la date de fin custom est trop courte, elle est automatiquement etendue puis reaffichee dans le footer
+- changer de vue ou de granularite dans la barre haute met a jour le composant immediatement
+- si la date de fin custom est trop courte, elle est automatiquement etendue puis reaffichee dans la barre haute
 
 ## Validation native
 
@@ -353,6 +431,8 @@ Actions utilisees par le composant :
 - `event.action1`
 - `event.action2`
 
+Les actions custom de `contextMenu` peuvent utiliser leurs propres noms techniques.
+
 ## Rendu personnalisable
 
 Callbacks de rendu :
@@ -393,7 +473,7 @@ Evenements minimum emis :
 
 Evenements additionnels / conditionnels :
 
-- `contextActionSelected` (menu integre)
+- `contextActionSelected` (menu integre, avec `actionId` et `actionItem`)
 - `resourceEditRequested` (double-clic sur ressource ou action de menu)
 - `resourceDeleteRequested` (action de menu)
 - `eventDeleteRequested` (action de menu)
@@ -401,7 +481,7 @@ Evenements additionnels / conditionnels :
 Payloads typiques :
 
 - `resourceSelect` : `resource`, `resourceId`, `meta`, `selectedResourceIds`, `clientX`, `clientY`
-- `contextMenuRequested` : `targetType`, `resource`, `event`, `resourceId`, `eventId`, `date`, `clientX`, `clientY`, `actions`
+- `contextMenuRequested` : `targetType`, `resource`, `event`, `resourceId`, `eventId`, `date`, `clientX`, `clientY`, `actions`, `actionItems`
 - `eventCreateRequested` :
   - via bouton : `resource`, `resourceId`, `suggestedStart`, `suggestedEnd`, `inputMethod: "button"`
   - via drag vide : `resource`, `resourceId`, `start`, `end`, `inputMethod: "range"`
@@ -410,6 +490,19 @@ Payloads typiques :
 - `resourceOrderChangeRequested` : `orderedResourceIds`, `oldOrder`, `newOrder`
 - `validationError` : `code`, `message`, `context`, `resource`, `event`, `nextEvent`
 - `viewChanged` : `timeScale`, `viewMode`, `visibleStart`, `visibleEnd`, `displayStart`, `displayEnd`, `scrollLeft`, `scrollTop`
+
+`actionItems` contient les actions resolues pour le menu :
+
+```js
+{
+  id: "resource.edit",
+  label: "Edit resource",
+  iconClass: "icon-edit",
+  classNames: "is-accent",
+  builtIn: true,
+  permission: "resource.edit"
+}
+```
 
 ## API publique
 
@@ -479,7 +572,7 @@ La demo montre :
 - 10 ressources avec `order` et `meta`
 - plusieurs evenements non continus
 - des `markers` verticaux, dont 2 le meme jour pour montrer le decalage
-- le footer integre du composant pour `day / week / month` et `sliding / global / custom`
+- la barre haute du composant pour `day / week / month` et `sliding / global / custom`
 - un panneau de configuration technique pour `columnSizePreset` et les flags de drag / reorder
 - la creation par selection de plage
 - le move / resize

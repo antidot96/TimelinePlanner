@@ -179,6 +179,95 @@
     return result;
   }
 
+  function getNestedValue(source, path) {
+    var cursor = source;
+    var parts;
+    var index;
+
+    if (!source || !path) {
+      return undefined;
+    }
+
+    parts = String(path).split(".");
+
+    for (index = 0; index < parts.length; index += 1) {
+      if (cursor === null || cursor === undefined || !Object.prototype.hasOwnProperty.call(cursor, parts[index])) {
+        return undefined;
+      }
+
+      cursor = cursor[parts[index]];
+    }
+
+    return cursor;
+  }
+
+  function createDefaultContextMenuConfig() {
+    return {
+      actions: {
+        "resource.edit": {
+          labelKey: "menu.resourceEdit",
+          permission: "resource.edit",
+          builtIn: true,
+          mutable: true
+        },
+        "resource.delete": {
+          labelKey: "menu.resourceDelete",
+          permission: "resource.delete",
+          builtIn: true,
+          mutable: true
+        },
+        "resource.action1": {
+          labelKey: "menu.resourceAction1",
+          permission: "resource.action1",
+          builtIn: true,
+          mutable: true
+        },
+        "resource.action2": {
+          labelKey: "menu.resourceAction2",
+          permission: "resource.action2",
+          builtIn: true,
+          mutable: true
+        },
+        "event.edit": {
+          labelKey: "menu.eventEdit",
+          permission: "event.edit",
+          builtIn: true,
+          mutable: true
+        },
+        "event.delete": {
+          labelKey: "menu.eventDelete",
+          permission: "event.delete",
+          builtIn: true,
+          mutable: true
+        },
+        "event.action1": {
+          labelKey: "menu.eventAction1",
+          permission: "event.action1",
+          builtIn: true,
+          mutable: true
+        },
+        "event.action2": {
+          labelKey: "menu.eventAction2",
+          permission: "event.action2",
+          builtIn: true,
+          mutable: true
+        },
+        "event.create": {
+          labelKey: "menu.eventCreate",
+          permission: "event.create",
+          builtIn: true,
+          mutable: true
+        }
+      },
+      targets: {
+        resource: ["resource.edit", "resource.delete", "resource.action1", "resource.action2"],
+        event: ["event.edit", "event.delete", "event.action1", "event.action2"],
+        empty: ["event.create"]
+      },
+      resolveActions: null
+    };
+  }
+
   function normalizeClassNames(input) {
     if (!input) {
       return "";
@@ -446,7 +535,6 @@
     this.$scroll = null;
     this.$header = null;
     this.$rows = null;
-    this.$footer = null;
     this.$toastLayer = null;
     this.$contextMenu = null;
     this.locale = null;
@@ -475,6 +563,7 @@
       allowResourceReorder: true,
       allowCrossResourceEventMove: true,
       builtInContextMenu: false,
+      contextMenu: createDefaultContextMenuConfig(),
       multiSelectResources: false,
       showTodayLine: true,
       language: "EN",
@@ -583,6 +672,51 @@
       sanitized.translations = {};
     }
 
+    if (!$.isPlainObject(sanitized.contextMenu)) {
+      sanitized.contextMenu = createDefaultContextMenuConfig();
+    } else {
+      if (!$.isPlainObject(sanitized.contextMenu.actions)) {
+        sanitized.contextMenu.actions = $.extend(true, {}, defaultOptions.contextMenu.actions);
+      }
+
+      if (!$.isPlainObject(sanitized.contextMenu.targets)) {
+        sanitized.contextMenu.targets = $.extend(true, {}, defaultOptions.contextMenu.targets);
+      }
+
+      $.each(["resource", "event", "empty"], function (_, targetType) {
+        if (!$.isArray(sanitized.contextMenu.targets[targetType])) {
+          sanitized.contextMenu.targets[targetType] = defaultOptions.contextMenu.targets[targetType].slice();
+        } else {
+          sanitized.contextMenu.targets[targetType] = $.map(sanitized.contextMenu.targets[targetType], function (actionId) {
+            if (actionId === null || actionId === undefined || actionId === "") {
+              return null;
+            }
+
+            return String(actionId);
+          });
+        }
+      });
+
+      $.each(sanitized.contextMenu.actions, function (actionId, actionConfig) {
+        if (!$.isPlainObject(actionConfig)) {
+          delete sanitized.contextMenu.actions[actionId];
+          return;
+        }
+
+        if (actionConfig.classNames !== undefined && actionConfig.classNames !== null) {
+          actionConfig.classNames = normalizeClassNames(actionConfig.classNames);
+        }
+
+        if (actionConfig.iconClass !== undefined && actionConfig.iconClass !== null) {
+          actionConfig.iconClass = String(actionConfig.iconClass);
+        }
+      });
+
+      if (sanitized.contextMenu.resolveActions !== null && typeof sanitized.contextMenu.resolveActions !== "function") {
+        sanitized.contextMenu.resolveActions = null;
+      }
+    }
+
     sanitized.contentMarginDays = Math.max(0, parseInt(sanitized.contentMarginDays, 10) || defaultOptions.contentMarginDays);
     sanitized.fitMinDays = Math.max(1, parseInt(sanitized.fitMinDays, 10) || defaultOptions.fitMinDays);
     sanitized.slidingEdgeThresholdDays = Math.max(1, parseInt(sanitized.slidingEdgeThresholdDays, 10) || defaultOptions.slidingEdgeThresholdDays);
@@ -610,12 +744,11 @@
     this.$scroll = $('<div class="tp-scroll"></div>');
     this.$header = $('<div class="tp-header-row"></div>');
     this.$rows = $('<div class="tp-resource-rows"></div>');
-    this.$footer = $('<div class="tp-footer"></div>');
     this.$toastLayer = $('<div class="tp-toast-layer" aria-live="polite"></div>');
     this.$contextMenu = $('<div class="tp-context-menu"></div>').hide();
 
     this.$scroll.append(this.$header, this.$rows);
-    this.$root.append(this.$toolbar, this.$scroll, this.$footer, this.$toastLayer, this.$contextMenu);
+    this.$root.append(this.$toolbar, this.$scroll, this.$toastLayer, this.$contextMenu);
     this.$host.append(this.$root);
 
     this._bindBaseEvents();
@@ -624,7 +757,7 @@
   TimelinePlanner.prototype._bindBaseEvents = function () {
     var self = this;
 
-    this.$toolbar.on("click" + this.eventNamespace, ".tp-add-resource-btn", function (event) {
+    this.$root.on("click" + this.eventNamespace, ".tp-add-resource-btn", function (event) {
       event.preventDefault();
       self._hideContextMenu();
 
@@ -765,30 +898,31 @@
       self._syncSlidingExtendRequest(null);
     });
 
-    this.$footer.on("change" + this.eventNamespace, ".tp-time-scale-select", function () {
+    this.$toolbar.on("change" + this.eventNamespace, ".tp-time-scale-select", function () {
       self.setTimeScale($(this).val(), true);
     });
 
-    this.$footer.on("change" + this.eventNamespace, ".tp-view-mode-select", function () {
+    this.$toolbar.on("change" + this.eventNamespace, ".tp-view-mode-select", function () {
       self.setViewMode($(this).val());
     });
 
-    this.$footer.on("change" + this.eventNamespace, ".tp-custom-start-input, .tp-custom-end-input", function () {
+    this.$toolbar.on("change" + this.eventNamespace, ".tp-custom-start-input, .tp-custom-end-input", function () {
       self.setCustomView({
-        start: self.$footer.find(".tp-custom-start-input").val(),
-        end: self.$footer.find(".tp-custom-end-input").val()
+        start: self.$toolbar.find(".tp-custom-start-input").val(),
+        end: self.$toolbar.find(".tp-custom-end-input").val()
       });
     });
 
     this.$contextMenu.on("click" + this.eventNamespace, ".tp-menu-item", function (event) {
       var actionId = $(this).data("actionId");
       var payload = self.$contextMenu.data("payload") || null;
+      var actionItem = $(this).data("actionItem") || null;
 
       event.preventDefault();
       self._hideContextMenu();
 
       if (payload && actionId) {
-        self._dispatchStandardAction(actionId, payload);
+        self._dispatchContextAction(actionId, payload, actionItem);
       }
     });
 
@@ -1115,7 +1249,6 @@
     this._renderToolbar();
     this._renderHeader();
     this._renderRows();
-    this._renderFooter();
     this._initSortable();
     this._applyPostRenderScroll(preservedScrollState);
     this._emitViewChanged();
@@ -1156,7 +1289,6 @@
   };
 
   TimelinePlanner.prototype._renderToolbar = function () {
-    var canCreate = this._isActionAllowed("resource.create", { targetType: "resource" });
     var toolbarTitle = this.options.toolbarTitle;
     var $wrap = $(
       '<div class="tp-toolbar-main">' +
@@ -1166,24 +1298,20 @@
         '<div class="tp-toolbar-actions"></div>' +
       "</div>"
     );
+    var $actions = $wrap.find(".tp-toolbar-actions");
 
     if (toolbarTitle === null || toolbarTitle === undefined) {
       toolbarTitle = this.locale.labels.defaultToolbarTitle;
     }
 
     $wrap.find(".tp-toolbar-title").text(toolbarTitle);
-
-    if (canCreate) {
-      $wrap.find(".tp-toolbar-actions").append(
-        '<button type="button" class="tp-add-resource-btn"></button>'
-      );
-      $wrap.find(".tp-add-resource-btn").text(this.locale.labels.addResource);
-    }
+    this._appendToolbarViewControls($actions);
 
     this.$toolbar.empty().append($wrap);
   };
 
   TimelinePlanner.prototype._renderHeader = function () {
+    var canCreate = this._isActionAllowed("resource.create", { targetType: "resource" });
     var $row = $('<div class="tp-grid-row tp-grid-row-header"></div>');
     var halfHeaderHeight = Math.max(24, Math.floor(this.options.headerHeight / 2));
     var $left = $('<div class="tp-resource-header"></div>').css({
@@ -1200,8 +1328,20 @@
     var topSegments = this._buildHeaderSegments("top");
     var bottomSegments = this._buildHeaderSegments("bottom");
     var index;
+    var $headerMain = $('<div class="tp-resource-header-main"></div>');
+    var $headerLabel = $('<span class="tp-resource-header-label"></span>').text(this.locale.labels.resources);
 
-    $left.text(this.locale.labels.resources);
+    $headerMain.append($headerLabel);
+
+    if (canCreate) {
+      $headerMain.append(
+        $('<button type="button" class="tp-add-resource-btn tp-add-resource-btn-compact"></button>')
+          .attr("aria-label", this.locale.labels.addResource)
+          .append('<span class="tp-add-resource-btn-icon" aria-hidden="true">+</span>')
+      );
+    }
+
+    $left.append($headerMain);
 
     for (index = 0; index < topSegments.length; index += 1) {
       $top.append(this._buildHeaderSegment(topSegments[index]));
@@ -1224,18 +1364,11 @@
     this.$header.empty().append($row);
   };
 
-  TimelinePlanner.prototype._renderFooter = function () {
+  TimelinePlanner.prototype._appendToolbarViewControls = function ($controls) {
     var customView = this._normalizeCustomView(this.options.customView);
-    var $footer = $(
-      '<div class="tp-footer-inner">' +
-        '<div class="tp-footer-spacer"></div>' +
-        '<div class="tp-footer-controls"></div>' +
-      "</div>"
-    );
-    var $controls = $footer.find(".tp-footer-controls");
 
     $controls.append(
-      '<label class="tp-footer-field">' +
+      '<label class="tp-toolbar-field">' +
         '<span></span>' +
         '<select class="tp-time-scale-select">' +
           '<option value="day"></option>' +
@@ -1250,7 +1383,7 @@
     $controls.find('.tp-time-scale-select option[value="month"]').text(this.locale.timeScaleOptions.month);
 
     $controls.append(
-      '<label class="tp-footer-field">' +
+      '<label class="tp-toolbar-field">' +
         '<span></span>' +
         '<select class="tp-view-mode-select">' +
           '<option value="sliding"></option>' +
@@ -1266,13 +1399,13 @@
 
     if (this.currentViewMode === "custom") {
       $controls.append(
-        '<label class="tp-footer-field tp-footer-field-date">' +
+        '<label class="tp-toolbar-field tp-toolbar-field-date">' +
           '<span></span>' +
           '<input type="date" class="tp-custom-start-input">' +
         "</label>"
       );
       $controls.append(
-        '<label class="tp-footer-field tp-footer-field-date">' +
+        '<label class="tp-toolbar-field tp-toolbar-field-date">' +
           '<span></span>' +
           '<input type="date" class="tp-custom-end-input">' +
         "</label>"
@@ -1280,12 +1413,11 @@
       $controls.find(".tp-custom-start-input").prev("span").text(this.locale.labels.start);
       $controls.find(".tp-custom-end-input").prev("span").text(this.locale.labels.end);
     }
-
-    this.$footer.empty().append($footer);
-    this.$footer.find(".tp-time-scale-select").val(this.currentTimeScale);
-    this.$footer.find(".tp-view-mode-select").val(this.currentViewMode);
-    this.$footer.find(".tp-custom-start-input").val(customView.start);
-    this.$footer.find(".tp-custom-end-input").val(customView.end);
+ 
+    $controls.find(".tp-time-scale-select").val(this.currentTimeScale);
+    $controls.find(".tp-view-mode-select").val(this.currentViewMode);
+    $controls.find(".tp-custom-start-input").val(customView.start);
+    $controls.find(".tp-custom-end-input").val(customView.end);
   };
 
   TimelinePlanner.prototype._buildHeaderSegments = function (band) {
@@ -1538,7 +1670,11 @@
     );
     var $labelSlot = $('<div class="tp-resource-label-slot"></div>');
     var $label = $('<div class="tp-resource-label"></div>');
-    var $action = $('<button type="button" class="tp-add-event-btn">+</button>');
+    var $action = $(
+      '<button type="button" class="tp-add-event-btn">' +
+        '<span class="tp-add-event-btn-icon" aria-hidden="true">+</span>' +
+      "</button>"
+    );
     var canCreate = this._isActionAllowed("event.create", { targetType: "resource", resource: resource });
     var canReorder = this._isActionAllowed("resource.reorder", { targetType: "resource", resource: resource });
     var content = this.options.renderResourceLabel
@@ -1772,6 +1908,7 @@
 
   TimelinePlanner.prototype._handleContextMenu = function (event, $target) {
     var payload = null;
+    var actionItems;
     var resourceId;
     var eventId;
     var resource;
@@ -1785,6 +1922,7 @@
       eventId = $target.data("eventId");
       plannerEvent = this.eventMap[eventId];
       resource = plannerEvent ? this.resourceMap[plannerEvent.resourceId] : null;
+      actionItems = this._resolveContextActionItems("event", { event: plannerEvent, resource: resource });
       payload = {
         targetType: "event",
         eventId: plannerEvent ? plannerEvent.id : null,
@@ -1794,11 +1932,13 @@
         meta: plannerEvent ? cloneData(plannerEvent.meta) : null,
         clientX: event.clientX,
         clientY: event.clientY,
-        actions: this._getAllowedActions("event", { event: plannerEvent, resource: resource })
+        actions: this._getActionIds(actionItems),
+        actionItems: cloneData(actionItems)
       };
     } else if ($target.hasClass("tp-resource-cell")) {
       resourceId = $target.closest(".tp-resource-row").data("resourceId");
       resource = this.resourceMap[resourceId];
+      actionItems = this._resolveContextActionItems("resource", { resource: resource });
       payload = {
         targetType: "resource",
         resourceId: resource ? resource.id : null,
@@ -1806,12 +1946,14 @@
         meta: resource ? cloneData(resource.meta) : null,
         clientX: event.clientX,
         clientY: event.clientY,
-        actions: this._getAllowedActions("resource", { resource: resource })
+        actions: this._getActionIds(actionItems),
+        actionItems: cloneData(actionItems)
       };
     } else if ($target.hasClass("tp-row-track")) {
       resourceId = $target.data("resourceId");
       resource = this.resourceMap[resourceId];
       clickedDate = this._pointerToDate($target, event.clientX);
+      actionItems = this._resolveContextActionItems("empty", { resource: resource, date: clickedDate ? formatIsoDate(clickedDate) : null });
       payload = {
         targetType: "empty",
         resourceId: resource ? resource.id : null,
@@ -1820,7 +1962,8 @@
         meta: resource ? cloneData(resource.meta) : null,
         clientX: event.clientX,
         clientY: event.clientY,
-        actions: this._getAllowedActions("empty", { resource: resource })
+        actions: this._getActionIds(actionItems),
+        actionItems: cloneData(actionItems)
       };
     }
 
@@ -1836,42 +1979,162 @@
   };
 
   TimelinePlanner.prototype._getAllowedActions = function (targetType, ctx) {
-    var actions = [];
-    var candidates;
-    var self = this;
+    return this._getActionIds(this._resolveContextActionItems(targetType, ctx));
+  };
 
-    if (targetType === "resource") {
-      candidates = ["resource.edit", "resource.delete", "resource.action1", "resource.action2"];
-    } else if (targetType === "event") {
-      candidates = ["event.edit", "event.delete", "event.action1", "event.action2"];
-    } else {
-      candidates = ["event.create"];
+  TimelinePlanner.prototype._getActionIds = function (actionItems) {
+    return $.map(actionItems || [], function (actionItem) {
+      return actionItem && actionItem.id ? actionItem.id : null;
+    });
+  };
+
+  TimelinePlanner.prototype._resolveContextActionItems = function (targetType, ctx) {
+    var config = this.options.contextMenu || {};
+    var registry = config.actions || {};
+    var targetMap = config.targets || {};
+    var actionIds = $.isArray(targetMap[targetType]) ? targetMap[targetType].slice() : [];
+    var baseCtx = $.extend({ targetType: targetType }, ctx || {});
+    var self = this;
+    var seen = {};
+    var resolvedItems = [];
+    var resolvedIds;
+
+    if (typeof config.resolveActions === "function") {
+      resolvedIds = config.resolveActions(targetType, cloneData(baseCtx), actionIds.slice());
+
+      if ($.isArray(resolvedIds)) {
+        actionIds = resolvedIds.slice();
+      }
     }
 
-    $.each(candidates, function (_, actionId) {
-      if (self._isActionAllowed(actionId, $.extend({ targetType: targetType }, ctx || {}))) {
-        actions.push(actionId);
+    $.each(actionIds, function (_, actionId) {
+      var normalizedId;
+      var actionDefinition;
+      var actionItem;
+
+      if (actionId === null || actionId === undefined || actionId === "") {
+        return;
+      }
+
+      normalizedId = String(actionId);
+
+      if (seen[normalizedId]) {
+        return;
+      }
+
+      seen[normalizedId] = true;
+      actionDefinition = $.isPlainObject(registry[normalizedId]) ? registry[normalizedId] : null;
+
+      if (!actionDefinition) {
+        return;
+      }
+
+      actionItem = self._resolveContextActionItem(normalizedId, actionDefinition, baseCtx);
+
+      if (actionItem) {
+        resolvedItems.push(actionItem);
       }
     });
 
-    return actions;
+    return resolvedItems;
+  };
+
+  TimelinePlanner.prototype._resolveContextActionItem = function (actionId, actionDefinition, ctx) {
+    var label;
+
+    if (typeof actionDefinition.when === "function" &&
+      actionDefinition.when(cloneData($.extend({}, ctx || {}, { actionId: actionId }))) === false) {
+      return null;
+    }
+
+    if (!this._isContextActionAllowed(actionId, actionDefinition, ctx)) {
+      return null;
+    }
+
+    label = this._resolveContextActionLabel(actionId, actionDefinition);
+
+    return {
+      id: actionId,
+      label: label,
+      iconClass: actionDefinition.iconClass ? String(actionDefinition.iconClass) : "",
+      classNames: normalizeClassNames(actionDefinition.classNames),
+      builtIn: actionDefinition.builtIn === true,
+      permission: typeof actionDefinition.permission === "string" ? actionDefinition.permission : actionId
+    };
+  };
+
+  TimelinePlanner.prototype._resolveContextActionLabel = function (actionId, actionDefinition) {
+    var localized;
+
+    if (actionDefinition && actionDefinition.label !== undefined && actionDefinition.label !== null) {
+      return String(actionDefinition.label);
+    }
+
+    if (actionDefinition && actionDefinition.labelKey) {
+      localized = getNestedValue(this.locale, actionDefinition.labelKey);
+
+      if (localized !== undefined && localized !== null && localized !== "") {
+        return String(localized);
+      }
+    }
+
+    return this._getActionLabel(actionId);
+  };
+
+  TimelinePlanner.prototype._isContextActionAllowed = function (actionId, actionDefinition, ctx) {
+    var permissionAction = actionId;
+    var guardCtx = $.extend({}, ctx || {}, {
+      targetType: ctx && ctx.targetType ? ctx.targetType : null,
+      mutable: actionDefinition && actionDefinition.mutable === true,
+      requestedAction: actionId
+    });
+
+    if (actionDefinition && typeof actionDefinition.permission === "string" && actionDefinition.permission) {
+      permissionAction = actionDefinition.permission;
+    }
+
+    if (!this._isActionAllowed(permissionAction, guardCtx)) {
+      return false;
+    }
+
+    if (actionDefinition && typeof actionDefinition.permission === "function") {
+      return actionDefinition.permission(cloneData(guardCtx), actionId, cloneData(actionDefinition)) !== false;
+    }
+
+    return true;
   };
 
   TimelinePlanner.prototype._showContextMenu = function (payload) {
     var self = this;
     var $list = $('<ul class="tp-menu-list"></ul>');
+    var actionItems = payload && payload.actionItems ? payload.actionItems : [];
 
-    if (!payload.actions || !payload.actions.length) {
+    if (!actionItems.length) {
       return;
     }
 
-    $.each(payload.actions, function (_, actionId) {
-      $list.append(
-        $('<li class="tp-menu-item"></li>')
-          .attr("data-action-id", actionId)
-          .data("actionId", actionId)
-          .text(self._getActionLabel(actionId))
+    $.each(actionItems, function (_, actionItem) {
+      var $item = $('<li class="tp-menu-item"></li>')
+        .attr("data-action-id", actionItem.id)
+        .data("actionId", actionItem.id)
+        .data("actionItem", cloneData(actionItem));
+      var classNames = normalizeClassNames(actionItem.classNames);
+
+      if (classNames) {
+        $item.addClass(classNames);
+      }
+
+      if (actionItem.iconClass) {
+        $item.append(
+          $('<span class="tp-menu-item-icon" aria-hidden="true"></span>').addClass(actionItem.iconClass)
+        );
+      }
+
+      $item.append(
+        $('<span class="tp-menu-item-label"></span>').text(actionItem.label || self._getActionLabel(actionItem.id))
       );
+
+      $list.append($item);
     });
 
     this.$contextMenu
@@ -1906,8 +2169,6 @@
   };
 
   TimelinePlanner.prototype._dispatchStandardAction = function (actionId, payload) {
-    this._emit("contextActionSelected", $.extend({}, payload, { actionId: actionId }));
-
     if (actionId === "event.edit") {
       this._emit("eventEditRequested", payload);
       return;
@@ -1940,6 +2201,38 @@
         clientY: payload.clientY
       });
     }
+  };
+
+  TimelinePlanner.prototype._dispatchContextAction = function (actionId, payload, actionItem) {
+    var builtInItem = actionItem || this._findContextActionItem(payload, actionId);
+
+    this._emit("contextActionSelected", $.extend({}, payload, {
+      actionId: actionId,
+      actionItem: builtInItem
+    }));
+
+    if (builtInItem && builtInItem.builtIn === true) {
+      this._dispatchStandardAction(actionId, payload);
+      return;
+    }
+
+    if (actionId === "event.edit" || actionId === "event.delete" || actionId === "resource.edit" ||
+      actionId === "resource.delete" || actionId === "event.create") {
+      this._dispatchStandardAction(actionId, payload);
+    }
+  };
+
+  TimelinePlanner.prototype._findContextActionItem = function (payload, actionId) {
+    var found = null;
+
+    $.each(payload && payload.actionItems ? payload.actionItems : [], function (_, actionItem) {
+      if (actionItem && actionItem.id === actionId) {
+        found = actionItem;
+        return false;
+      }
+    });
+
+    return found ? cloneData(found) : null;
   };
 
   TimelinePlanner.prototype._startRangeSelection = function (event, $track) {
@@ -2414,7 +2707,7 @@
   };
 
   TimelinePlanner.prototype._isActionAllowed = function (actionId, ctx) {
-    var mutable = isMutableAction(actionId);
+    var mutable = ctx && ctx.mutable === true ? true : isMutableAction(actionId);
     var resource = ctx && ctx.resource ? ctx.resource : null;
     var plannerEvent = ctx && ctx.event ? ctx.event : null;
     var allowed = true;
@@ -3067,7 +3360,7 @@
     if (this.options.viewMode === "custom") {
       this._render();
     } else {
-      this._renderFooter();
+      this._renderToolbar();
     }
 
     return this;
