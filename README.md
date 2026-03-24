@@ -256,6 +256,7 @@ Notes utiles :
 - `translations` fusionne partiellement vos libelles metier sur le pack choisi
 - `toolbarTitle: null` utilise le titre integre de la langue courante
 - `contextMenu` permet de configurer les actions visibles pour `resource`, `event` et `empty`
+- `contextMenu.targets.resource`, `event` et `empty` remplacent chacun leur liste standard
 - en `global` et `custom`, la largeur des colonnes est calculee automatiquement pour tout faire tenir
 - en `sliding`, l'extension automatique des colonnes est temporisee (`slidingExtendDelayMs`) pour eviter un emballement
 - en `sliding`, approcher le pointeur du bord gauche/droit de la timeline peut aussi declencher l'extension, utile quand il n'y a pas encore de scrollbar horizontale
@@ -347,7 +348,7 @@ Champs utiles d'une action :
 
 Comportement :
 
-- si aucune configuration n'est fournie, le menu utilise les actions integrees actuelles
+- si aucune configuration n'est fournie, le menu utilise les actions integrees standard
 - les actions non autorisees sont masquees
 - `can(action, ctx)` continue de fonctionner ; `ctx.requestedAction` contient l'ID d'action de menu original
 - `targets` determine quelles actions sont candidates par cible
@@ -357,12 +358,8 @@ Actions integrees par defaut :
 
 - `resource.edit`
 - `resource.delete`
-- `resource.action1`
-- `resource.action2`
 - `event.edit`
 - `event.delete`
-- `event.action1`
-- `event.action2`
 - `event.create`
 
 ## Barre haute
@@ -421,15 +418,11 @@ Actions utilisees par le composant :
 - `resource.edit`
 - `resource.delete`
 - `resource.reorder`
-- `resource.action1`
-- `resource.action2`
 - `event.create`
 - `event.edit`
 - `event.delete`
 - `event.move`
 - `event.resize`
-- `event.action1`
-- `event.action2`
 
 Les actions custom de `contextMenu` peuvent utiliser leurs propres noms techniques.
 

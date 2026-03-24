@@ -357,16 +357,16 @@
       };
 
       var baseResources = [
-        { id: "R1", label: "Equipe Alpha", order: 4, editable: true, typeId: "TEAM", meta: { manager: "Lena", color: "cyan" } },
-        { id: "R2", label: "Equipe Beta", order: 2, editable: true, typeId: "TEAM", meta: { manager: "Marc", color: "blue" } },
-        { id: "R3", label: "Equipe Gamma", order: 6, editable: true, typeId: "TEAM", meta: { manager: "Iris", color: "green" } },
-        { id: "R4", label: "Equipe Delta", order: 1, editable: true, typeId: "TEAM", meta: { manager: "Noe", color: "amber" } },
-        { id: "R5", label: "Equipe Epsilon", order: 9, editable: true, typeId: "TEAM", meta: { manager: "Zoe", color: "red" } },
-        { id: "R6", label: "Equipe Zeta", order: 3, editable: true, typeId: "TEAM", meta: { manager: "Sami", color: "violet" } },
-        { id: "R7", label: "Equipe Eta", order: 8, editable: true, typeId: "TEAM", meta: { manager: "Nora", color: "gray" } },
-        { id: "R8", label: "Equipe Theta", order: 5, editable: true, typeId: "TEAM", meta: { manager: "Leo", color: "teal" } },
-        { id: "R9", label: "Equipe Iota", order: 10, editable: true, typeId: "TEAM", meta: { manager: "Mia", color: "navy" } },
-        { id: "R10", label: "Equipe Kappa", order: 7, editable: true, typeId: "TEAM", meta: { manager: "Yann", color: "lime" } }
+        { id: "R1", label: "Equipe Alpha", order: 4, editable: true, typeId: "LOT", meta: { manager: "Lena", color: "cyan" } },
+        { id: "R2", label: "Equipe Beta", order: 2, editable: true, typeId: "LOT", meta: { manager: "Marc", color: "blue" } },
+        { id: "R3", label: "Equipe Gamma", order: 6, editable: true, typeId: "LOT", meta: { manager: "Iris", color: "green" } },
+        { id: "R4", label: "Equipe Delta", order: 1, editable: true, typeId: "LOT", meta: { manager: "Noe", color: "amber" } },
+        { id: "R5", label: "Equipe Epsilon", order: 9, editable: true, typeId: "LOT", meta: { manager: "Zoe", color: "red" } },
+        { id: "R6", label: "Equipe Zeta", order: 3, editable: true, typeId: "LOT", meta: { manager: "Sami", color: "violet" } },
+        { id: "R7", label: "Equipe Eta", order: 8, editable: true, typeId: "LOT", meta: { manager: "Nora", color: "gray" } },
+        { id: "R8", label: "Equipe Theta", order: 5, editable: true, typeId: "LOT", meta: { manager: "Leo", color: "teal" } },
+        { id: "R9", label: "Equipe Iota", order: 10, editable: true, typeId: "LOT", meta: { manager: "Mia", color: "navy" } },
+        { id: "R10", label: "Equipe Kappa", order: 7, editable: true, typeId: "LOT", meta: { manager: "Yann", color: "lime" } }
       ];
 
       var baseEvents = [
@@ -498,7 +498,7 @@
               classNames: "demo-menu-accent",
               permission: "resource.openSheet",
               when: function (ctx) {
-                return !!(ctx.resource && ctx.resource.meta && ctx.resource.meta.manager);
+                return ctx.resource && ctx.resource.typeId === "LOT";
               }
             },
             "event.inspect": {
@@ -759,16 +759,16 @@
                         },
                         "lot.openSheet": {
                             label: "Ouvrir la fiche lot",
-                            iconClass: "icon-sheet",
+                            //iconClass: "icon-sheet",
                             classNames: "is-accent",
                             permission: "lot.openSheet",
                             when: function (ctx) {
-                                return ctx.resource && ctx.resource.typeId === "LOT";
+                                return !!(ctx.resource && ctx.resource.meta && ctx.resource.meta.manager);
                             }
                         }
                     },
                     targets: {
-                        resource: ["resource.edit", "lot.openSheet", "resource.delete"],
+                        resource: ["resource.edit", "lot.openSheet"],
                         event: ["event.edit", "event.delete"],
                         empty: ["event.create"]
                     },

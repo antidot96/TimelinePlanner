@@ -157,8 +157,10 @@
   }
 
   function mergeOptions(base, patch) {
-    var result = $.extend(true, {}, base);
+    var result = $.isPlainObject(base) ? $.extend(true, {}, base) : {};
     var key;
+    var currentValue;
+    var nextValue;
 
     patch = patch || {};
 
@@ -167,12 +169,15 @@
         continue;
       }
 
-      if ($.isArray(patch[key])) {
-        result[key] = patch[key].slice();
-      } else if ($.isPlainObject(patch[key])) {
-        result[key] = $.extend(true, {}, result[key] || {}, patch[key]);
+      currentValue = result[key];
+      nextValue = patch[key];
+
+      if ($.isArray(nextValue)) {
+        result[key] = nextValue.slice();
+      } else if ($.isPlainObject(nextValue)) {
+        result[key] = mergeOptions($.isPlainObject(currentValue) ? currentValue : {}, nextValue);
       } else {
-        result[key] = patch[key];
+        result[key] = nextValue;
       }
     }
 
@@ -216,18 +221,6 @@
           builtIn: true,
           mutable: true
         },
-        "resource.action1": {
-          labelKey: "menu.resourceAction1",
-          permission: "resource.action1",
-          builtIn: true,
-          mutable: true
-        },
-        "resource.action2": {
-          labelKey: "menu.resourceAction2",
-          permission: "resource.action2",
-          builtIn: true,
-          mutable: true
-        },
         "event.edit": {
           labelKey: "menu.eventEdit",
           permission: "event.edit",
@@ -240,18 +233,6 @@
           builtIn: true,
           mutable: true
         },
-        "event.action1": {
-          labelKey: "menu.eventAction1",
-          permission: "event.action1",
-          builtIn: true,
-          mutable: true
-        },
-        "event.action2": {
-          labelKey: "menu.eventAction2",
-          permission: "event.action2",
-          builtIn: true,
-          mutable: true
-        },
         "event.create": {
           labelKey: "menu.eventCreate",
           permission: "event.create",
@@ -260,8 +241,8 @@
         }
       },
       targets: {
-        resource: ["resource.edit", "resource.delete", "resource.action1", "resource.action2"],
-        event: ["event.edit", "event.delete", "event.action1", "event.action2"],
+        resource: ["resource.edit", "resource.delete"],
+        event: ["event.edit", "event.delete"],
         empty: ["event.create"]
       },
       resolveActions: null
