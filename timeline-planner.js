@@ -834,6 +834,7 @@
     });
 
     this.$scroll.on("contextmenu" + this.eventNamespace, ".tp-resource-cell, .tp-row-track, .tp-event-bar", function (event) {
+      event.stopPropagation();
       self._handleContextMenu(event, $(this));
     });
 
@@ -1899,18 +1900,17 @@
     event.preventDefault();
     this._hideContextMenu();
 
-    if ($target.hasClass("tp-event-bar")) {
-      eventId = $target.data("eventId");
-      plannerEvent = this.eventMap[eventId];
-      resource = plannerEvent ? this.resourceMap[plannerEvent.resourceId] : null;
-      actionItems = this._resolveContextActionItems("event", { event: plannerEvent, resource: resource });
+    if ($target.hasClass("tp-row-track")) {
+      resourceId = $target.data("resourceId");
+      resource = this.resourceMap[resourceId];
+      clickedDate = this._pointerToDate($target, event.clientX);
+      actionItems = this._resolveContextActionItems("empty", { resource: resource, date: clickedDate ? formatIsoDate(clickedDate) : null });
       payload = {
-        targetType: "event",
-        eventId: plannerEvent ? plannerEvent.id : null,
+        targetType: "empty",
         resourceId: resource ? resource.id : null,
-        event: plannerEvent ? cloneData(plannerEvent) : null,
         resource: resource ? cloneData(resource) : null,
-        meta: plannerEvent ? cloneData(plannerEvent.meta) : null,
+        date: clickedDate ? formatIsoDate(clickedDate) : null,
+        meta: resource ? cloneData(resource.meta) : null,
         clientX: event.clientX,
         clientY: event.clientY,
         actions: this._getActionIds(actionItems),
@@ -1930,17 +1930,18 @@
         actions: this._getActionIds(actionItems),
         actionItems: cloneData(actionItems)
       };
-    } else if ($target.hasClass("tp-row-track")) {
-      resourceId = $target.data("resourceId");
-      resource = this.resourceMap[resourceId];
-      clickedDate = this._pointerToDate($target, event.clientX);
-      actionItems = this._resolveContextActionItems("empty", { resource: resource, date: clickedDate ? formatIsoDate(clickedDate) : null });
+    } else if ($target.hasClass("tp-event-bar")) {
+      eventId = $target.data("eventId");
+      plannerEvent = this.eventMap[eventId];
+      resource = plannerEvent ? this.resourceMap[plannerEvent.resourceId] : null;
+      actionItems = this._resolveContextActionItems("event", { event: plannerEvent, resource: resource });
       payload = {
-        targetType: "empty",
+        targetType: "event",
+        eventId: plannerEvent ? plannerEvent.id : null,
         resourceId: resource ? resource.id : null,
+        event: plannerEvent ? cloneData(plannerEvent) : null,
         resource: resource ? cloneData(resource) : null,
-        date: clickedDate ? formatIsoDate(clickedDate) : null,
-        meta: resource ? cloneData(resource.meta) : null,
+        meta: plannerEvent ? cloneData(plannerEvent.meta) : null,
         clientX: event.clientX,
         clientY: event.clientY,
         actions: this._getActionIds(actionItems),
